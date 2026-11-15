@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Cty.DependencyInjection.Scoped/Cty.DependencyInjection.Scoped.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/Cty.DependencyInjection.Scoped.Tests/Cty.DependencyInjection.Scoped.Tests.csproj" Id="0a825778-d97f-4f7c-b16b-ec47447a1942" />
+  </Folder>
+</Solution>
