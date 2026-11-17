@@ -26,9 +26,9 @@ public class UnitOfWorkTests
     public async Task UnitOfWork_Should_Resolve_Scoped_Service()
     {
         var sp = BuildProvider();
-        var factory = sp.GetRequiredService<Func<Task<UnitOfWork>>>();
+        var factory = sp.GetRequiredService<Func<UnitOfWork>>();
 
-        await using var uow = await factory();
+        await using var uow = factory();
         var repo = uow.GetRequiredService<IRepo>();
 
         Assert.Equal("data", repo.Load());
@@ -38,10 +38,10 @@ public class UnitOfWorkTests
     public async Task UnitOfWork_Should_Dispose_Scope_After_Use()
     {
         var sp = BuildProvider();
-        var factory = sp.GetRequiredService<Func<Task<UnitOfWork>>>();
+        var factory = sp.GetRequiredService<Func<UnitOfWork>>();
 
         UnitOfWork uow;
-        await using (uow = await factory())
+        await using (uow = factory())
         {
             _ = uow.GetRequiredService<IRepo>();
         }
@@ -94,8 +94,8 @@ public class UnitOfWorkTests
         sc.AddUnitOfWorkFactory();
         var sp = sc.BuildServiceProvider();
 
-        var factory = sp.GetRequiredService<Func<Task<UnitOfWork>>>();
-        await using var uow = await factory();
+        var factory = sp.GetRequiredService<Func<UnitOfWork>>();
+        await using var uow = factory();
 
         Assert.Equal(2, uow.GetServices<IRepo>().Count());
     }

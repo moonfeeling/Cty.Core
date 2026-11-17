@@ -35,20 +35,15 @@ public static class ScopedServiceCollectionExtensions
     }
 
     /// <summary>
-    /// 泛型便捷注册：为单个服务类型提供带 Scope 的解析工厂。
+    /// 以开放泛型方式一次性注册所有服务类型的
+    /// <see cref="IScopedResolver{TService}"/> 与 <see cref="ISyncScopedResolver{TService}"/>。
+    /// 无需为每个服务类型单独调用注册方法（类似 ILogger&lt;T&gt; 的模式）。
     /// </summary>
-    public static IServiceCollection AddScopedResolver<TService>(
+    public static IServiceCollection AddScopedResolvers(
         this IServiceCollection services)
-        where TService : class
     {
-        services.AddSingleton<Func<ScopedResult<TService>>>(sp =>
-            () =>
-            {
-                var scope = sp.CreateAsyncScope();
-                var service = scope.ServiceProvider
-                    .GetRequiredService<TService>();
-                return new ScopedResult<TService>(scope, service);
-            });
+        services.AddSingleton(typeof(IScopedResolver<>), typeof(ScopedResolver<>));
+        services.AddSingleton(typeof(ISyncScopedResolver<>), typeof(SyncScopedResolver<>));
 
         return services;
     }
@@ -65,24 +60,6 @@ public static class ScopedServiceCollectionExtensions
         {
             var scope = sp.CreateScope();
             return new SyncUnitOfWork(scope);
-        });
-
-        return services;
-    }
-
-    /// <summary>
-    /// 泛型便捷注册：为单个服务类型提供带 Scope 的同步解析工厂。
-    /// </summary>
-    public static IServiceCollection AddSyncScopedResolver<TService>(
-        this IServiceCollection services)
-        where TService : class
-    {
-        services.AddSingleton<Func<SyncScopedResult<TService>>>(sp => () =>
-        {
-            var scope = sp.CreateScope();
-            var service = scope.ServiceProvider
-                .GetRequiredService<TService>();
-            return new SyncScopedResult<TService>(scope, service);
         });
 
         return services;
