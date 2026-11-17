@@ -51,7 +51,7 @@ dotnet pack src/Cty.DependencyInjection.Scoped
 `IScopedResolver<T>` / `ISyncScopedResolver<T>`（实现类 `ScopedResolver<T>` / `SyncScopedResolver<T>`，internal，只依赖 `IServiceScopeFactory`）：
 - 通过 `AddScopedResolvers()` 以**开放泛型**一次性注册（类似 `ILogger<T>` 模式），无需逐服务类型注册
 - 每次调用 `Resolve()` 创建全新 Scope 并解析服务，返回包装了 "scope + 已解析服务" 的 `ScopedResult<T>` / `SyncScopedResult<T>`
-- 解析失败时实现内部保证已创建的 Scope 被释放
+- 解析失败时实现内部保证已创建的 Scope 被释放（共用 `ScopeDisposal.DisposeOnFailure`：失败路径走 DisposeAsync + Task.Run，覆盖仅实现 IAsyncDisposable 的服务，且释放异常不掩盖原始解析异常）
 
 ### 4. 注册扩展（ScopedServiceCollectionExtensions）
 

@@ -12,6 +12,41 @@ public class ScopedResolverTests
     private interface IEmail { void Send(); }
     private class Email : IEmail { public void Send() { } }
 
+    private class DisposeTracker
+    {
+        public int DisposedCount;
+    }
+
+    // 仅实现 IAsyncDisposable 的服务（同步 Dispose 路径无法释放的类型）
+    private class AsyncOnly : IAsyncDisposable
+    {
+        private readonly DisposeTracker _tracker;
+
+        public AsyncOnly(DisposeTracker tracker) => _tracker = tracker;
+
+        public ValueTask DisposeAsync()
+        {
+            _tracker.DisposedCount++;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private class ThrowingAsyncOnly : IAsyncDisposable
+    {
+        public ValueTask DisposeAsync() => throw new InvalidOperationException("dispose failed");
+    }
+
+    private class Broken
+    {
+        public Broken(AsyncOnly dep) => throw new InvalidOperationException("construct failed");
+    }
+
+    private class BrokenWithThrowingDispose
+    {
+        public BrokenWithThrowingDispose(ThrowingAsyncOnly dep)
+            => throw new InvalidOperationException("construct failed 2");
+    }
+
     private static IServiceProvider BuildProvider()
     {
         var sc = new ServiceCollection();
@@ -78,5 +113,42 @@ public class ScopedResolverTests
         var r2 = sp.GetRequiredService<IScopedResolver<IRepo>>();
 
         Assert.Same(r1, r2);
+    }
+
+    [Fact]
+    public void Resolve_Failure_Should_Dispose_AsyncOnly_Services_And_Preserve_Original_Exception()
+    {
+        var tracker = new DisposeTracker();
+        var sc = new ServiceCollection();
+        sc.AddSingleton(tracker);
+        sc.AddScoped<AsyncOnly>();
+        sc.AddScoped<Broken>();
+        sc.AddScopedResolvers();
+        var sp = sc.BuildServiceProvider();
+
+        var resolver = sp.GetRequiredService<IScopedResolver<Broken>>();
+
+        var ex = Record.Exception(() => resolver.Resolve());
+
+        // 调用方看到原始构造异常，而非容器释放路径的异常
+        Assert.Equal("construct failed", ex?.Message);
+        // 仅实现 IAsyncDisposable 的半成品服务也被正确释放
+        Assert.Equal(1, tracker.DisposedCount);
+    }
+
+    [Fact]
+    public void Resolve_Failure_Should_Not_Mask_Original_Exception_When_Disposal_Throws()
+    {
+        var sc = new ServiceCollection();
+        sc.AddScoped<ThrowingAsyncOnly>();
+        sc.AddScoped<BrokenWithThrowingDispose>();
+        sc.AddScopedResolvers();
+        var sp = sc.BuildServiceProvider();
+
+        var resolver = sp.GetRequiredService<IScopedResolver<BrokenWithThrowingDispose>>();
+
+        var ex = Record.Exception(() => resolver.Resolve());
+
+        Assert.Equal("construct failed 2", ex?.Message);
     }
 }

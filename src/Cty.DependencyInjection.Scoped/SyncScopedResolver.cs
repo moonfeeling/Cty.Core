@@ -17,8 +17,8 @@ internal sealed class SyncScopedResolver<TService>(
         }
         catch
         {
-            // 解析失败时同样要释放已创建的 Scope，避免泄漏
-            scope.Dispose();
+            // 解析失败时释放已创建的 Scope，避免半成品依赖图泄漏
+            ScopeDisposal.DisposeOnFailure(scope);
             throw;
         }
     }
